@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Workout - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'workout' %}
+
+<section class="card">
+  <div class="card-head">
+    <h2>Today's Plan</h2>
+    <span class="chip lime">{{ today_plan.exercises|length if today_plan else 0 }} exercises</span>
+  </div>
+  {% if today_plan and today_plan.exercises %}
+  <div class="plan-list">
+    {% for ex in today_plan.exercises %}
+    <details class="plan-card" {% if loop.first %}open{% endif %}>
+      <summary>
+        <img src="{{ ex.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+        <div class="plan-info">
+          <div class="plan-name">{{ ex.name }}</div>
+          <div class="plan-meta">{{ ex.muscle }} · {{ ex.equipment }} · {{ ex.difficulty }}</div>
+        </div>
+        <span class="plan-sets">{{ ex.sets }} × {{ ex.reps }}</span>
+      </summary>
+      <div class="plan-body">
+        <p>{{ ex.instructions }}</p>
+        <div class="video-wrap">
+          <iframe src="{{ ex.video_url }}" title="{{ ex.name }}" allowfullscreen loading="lazy"></iframe>
+        </div>
+        <form method="post" action="{{ url_for('workout_start') }}" class="form log-form">
+          <input type="hidden" name="exercise" value="{{ ex.name }}">
+          <div class="row-3">
+            <label>Sets<input type="number" name="sets" value="{{ ex.sets }}" min="1"></label>
+            <label>Reps<input type="text" name="reps" value="{{ ex.reps }}"></label>
+            <label>Min<input type="number" name="duration_min" value="10" min="1"></label>
+          </div>
+          <button class="btn btn-success btn-block">
+            <span class="material-symbols-outlined">check</span> Log {{ ex.name }} (+10 XP)
+          </button>
+        </form>
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">Complete onboarding to get your plan, or regenerate below.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Log a Free Exercise</h2></div>
+  <form method="post" action="{{ url_for('workout_start') }}" class="form">
+    <label>Exercise
+      <input list="exercise-list" name="exercise" placeholder="Start typing..." required>
+      <datalist id="exercise-list">
+        {% for e in exercises %}<option value="{{ e.name }}">{% endfor %}
+      </datalist>
+    </label>
+    <div class="row-3">
+      <label>Sets<input type="number" name="sets" value="3" min="1"></label>
+      <label>Reps<input type="text" name="reps" value="10-12"></label>
+      <label>Min<input type="number" name="duration_min" value="15" min="1"></label>
+    </div>
+    <button class="btn btn-primary btn-block">
+      <span class="material-symbols-outlined">fitness_center</span> Log Workout +10 XP
+    </button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Browse Library</h2><a class="link" href="{{ url_for('library') }}">Open →</a></div>
+  <div class="lib-strip">
+    {% for e in exercises[:8] %}
+    <a class="lib-chip" href="{{ url_for('exercise_detail', ex_id=e.id) }}">
+      <img src="{{ e.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+      <span>{{ e.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

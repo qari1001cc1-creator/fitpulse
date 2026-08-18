@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Profile - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'dashboard' %}
+
+<section class="card profile-head" style="display:flex;gap:14px;align-items:center">
+  <div class="avatar big">{{ user.name[0]|upper }}</div>
+  <div style="flex:1">
+    <h1 style="font-size:20px;font-weight:800">{{ user.name }}</h1>
+    <p class="muted small">{{ user.email }}</p>
+    <div class="chips" style="margin-top:8px">
+      <span class="chip lime">⚡ Level {{ stats.level.level }}</span>
+      <span class="chip">{{ stats.xp }} XP</span>
+      <span class="chip">🔥 {{ stats.streak }} day</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Update Profile</h2><span class="chip">Plan auto-regenerates</span></div>
+  <form method="post" action="{{ url_for('profile_update') }}" class="form">
+    <div class="row-2">
+      <label>Age<input type="number" name="age" value="{{ profile.age }}"></label>
+      <label>Weight (kg)<input type="number" step="0.1" name="weight_kg" value="{{ profile.weight_kg }}"></label>
+    </div>
+    <div class="row-2">
+      <label>Height (cm)<input type="number" name="height_cm" value="{{ profile.height_cm }}"></label>
+      <label>Days/week<input type="number" name="days_per_week" min="2" max="6" value="{{ profile.days_per_week }}"></label>
+    </div>
+    <label>Goal
+      <select name="goal">
+        {% for g in ['lose_weight','gain_muscle','strength','endurance','stay_fit'] %}
+        <option value="{{ g }}" {{ 'selected' if profile.goal==g }}>{{ g.replace('_',' ')|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Activity level
+      <select name="activity_level">
+        {% for a in ['sedentary','light','moderate','active','very_active'] %}
+        <option value="{{ a }}" {{ 'selected' if profile.activity_level==a }}>{{ a.replace('_',' ')|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Experience
+      <select name="experience">
+        {% for e in ['beginner','intermediate','advanced'] %}
+        <option value="{{ e }}" {{ 'selected' if profile.experience==e }}>{{ e|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="row-2">
+      <label>Place
+        <select name="workout_pref">
+          <option value="gym" {{ 'selected' if profile.workout_pref=='gym' }}>Gym</option>
+          <option value="home" {{ 'selected' if profile.workout_pref=='home' }}>Home</option>
+        </select>
+      </label>
+      <label>Diet
+        <select name="diet_pref">
+          {% for d in ['halal','vegetarian','vegan','keto'] %}
+          <option value="{{ d }}" {{ 'selected' if profile.diet_pref==d }}>{{ d|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <button class="btn btn-primary btn-block">Save Changes</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Your Numbers</h2></div>
+  <div class="macro-grid">
+    <div class="macro-card"><div class="macro-val">{{ profile.bmi }}</div><div class="macro-lbl">BMI · {{ profile.bmi_category }}</div></div>
+    <div class="macro-card"><div class="macro-val">{{ profile.bmr }}<small> kcal</small></div><div class="macro-lbl">BMR</div></div>
+    <div class="macro-card"><div class="macro-val">{{ profile.tdee }}<small> kcal</small></div><div class="macro-lbl">TDEE</div></div>
+    <div class="macro-card"><div class="macro-val">{{ profile.calories }}<small> kcal</small></div><div class="macro-lbl">Daily target</div></div>
+  </div>
+  <div class="macro-grid" style="margin-top:8px">
+    <div class="macro-card"><div class="macro-val">{{ profile.protein }}<small>g</small></div><div class="macro-lbl">Protein</div></div>
+    <div class="macro-card"><div class="macro-val">{{ profile.carbs }}<small>g</small></div><div class="macro-lbl">Carbs</div></div>
+    <div class="macro-card"><div class="macro-val">{{ profile.fat }}<small>g</small></div><div class="macro-lbl">Fat</div></div>
+    <div class="macro-card"><div class="macro-val">{{ stats.water_goal // 1000 }}<small>L</small></div><div class="macro-lbl">Water goal</div></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Settings</h2><span class="chip">App preferences</span></div>
+  <form method="post" action="{{ url_for('settings_update') }}" class="form">
+    <label class="switch-row">
+      <span>Daily reminders</span>
+      <input type="checkbox" name="notifications" value="1" {{ 'checked' if settings.notifications }}>
+    </label>
+    <label class="switch-row">
+      <span>AI Coach speaks replies aloud</span>
+      <input type="checkbox" name="tts" value="1" {{ 'checked' if settings.tts }}>
+    </label>
+    <button class="btn btn-ghost btn-block">Save Settings</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Badges ({{ badges|length }})</h2></div>
+  <div class="badge-grid">
+    {% for b in badges %}
+    <div class="badge-card"><span>🏆</span><b>{{ b.name }}</b><small>{{ b.earned_at[:10] }}</small></div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="quick-actions">
+  <a href="{{ url_for('library') }}" class="btn btn-ghost">Library</a>
+  <a href="{{ url_for('logout') }}" class="btn btn-danger">Log out</a>
+</div>
+{% endblock %}

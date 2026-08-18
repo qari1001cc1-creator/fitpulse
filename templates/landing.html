@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}FitPulse - Your AI Fitness Coach{% endblock %}
+{% block bodyclass %}landing-page{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="landing-logo">F</div>
+  <div class="hero-badge">⚡ AI-Powered Fitness App</div>
+  <h1 class="hero-title">Your <span class="grad">AI Fitness</span> Coach.<br>Workout. Diet. Progress.</h1>
+  <p class="hero-sub">Personalized daily exercise plans with video demos, an AI coach you can talk to, diet &amp; weight tracking, streaks, XP and weekly reports — all in one app.</p>
+
+  <div class="hero-actions">
+    <a href="{{ url_for('signup') }}" class="btn btn-primary">Start Free</a>
+    <a href="{{ url_for('login') }}" class="btn btn-ghost">Log In</a>
+  </div>
+
+  <div class="preview-grid">
+    <div class="card preview-card">
+      <div class="deco deco-lime"></div>
+      <div class="preview-label">Today's Mission</div>
+      <div class="preview-title">🔥 {{ 'Upper Body Power' if True else '' }}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="plan-item"><span class="plan-sets">4×8</span><div class="plan-info"><div class="plan-name">Bench Press</div><div class="plan-meta">Chest · Barbell</div></div></div>
+        <div class="plan-item"><span class="plan-sets">3×10</span><div class="plan-info"><div class="plan-name">Pull-ups</div><div class="plan-meta">Back · Bodyweight</div></div></div>
+      </div>
+      <div class="preview-row">
+        <div class="preview-badges">
+          <span class="chip">STRENGTH</span>
+          <span class="chip lime">45 MIN</span>
+        </div>
+        <a href="{{ url_for('signup') }}" class="link" style="display:inline-flex;align-items:center;gap:4px">START SESSION <span class="material-symbols-outlined" style="font-size:16px">play_arrow</span></a>
+      </div>
+    </div>
+
+    <div class="card preview-card" style="display:flex;align-items:center;gap:14px">
+      <div class="deco deco-blue"></div>
+      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--secondary));display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 18px rgba(210,240,0,.3)">🔥</div>
+      <div>
+        <div style="font-family:var(--font-display);font-weight:900;font-size:22px">14 Day</div>
+        <div class="preview-label" style="color:var(--primary)">Active Streak</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="feature-grid">
+    <div class="feature-card"><div class="fic material-symbols-outlined">fitness_center</div><h3>Daily Exercise Plan</h3><p>Auto-generated for your goal, level &amp; schedule — with video demos</p></div>
+    <div class="feature-card blue"><div class="fic material-symbols-outlined">smart_toy</div><h3>AI Voice Coach</h3><p>Talk to your coach and get instant, personalized answers</p></div>
+    <div class="feature-card blue"><div class="fic material-symbols-outlined">restaurant</div><h3>Diet &amp; Calories</h3><p>Calorie targets, macros &amp; weekly meal plans</p></div>
+    <div class="feature-card"><div class="fic material-symbols-outlined">monitoring</div><h3>Progress &amp; Reports</h3><p>Weight charts, streaks, XP, badges, weekly reports</p></div>
+  </div>
+
+  <div class="hero-login-demo">
+    Try the demo: <code>demo@fitpulse.app</code> / <code>demo1234</code>
+  </div>
+
+  <div class="landing-footer">© 2026 FitPulse AI · High-Performance Fitness Ecosystem</div>
+</section>
+{% endblock %}

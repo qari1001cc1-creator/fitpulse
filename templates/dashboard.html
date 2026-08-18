@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'dashboard' %}
+
+<div class="dash-hello">
+  <div>
+    <h1>Good Morning, {{ user.name }} 👋</h1>
+    <p class="muted">{{ today_row.title if today_row else 'Ready to crush it today?' }}</p>
+  </div>
+  <div class="streak-badge">
+    <span class="big">{{ stats.streak }}</span>
+    <span class="material-symbols-outlined" style="color:var(--primary)">local_fire_department</span>
+    <small>streak</small>
+  </div>
+</div>
+
+<!-- Bento stats -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <span class="stat-ic material-symbols-outlined">monitor_weight</span>
+    <div><div class="stat-val">{{ stats.current_weight }} <small>kg</small></div><div class="stat-lbl">Weight</div></div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-ic material-symbols-outlined">local_fire_department</span>
+    <div><div class="stat-val">{{ stats.calories_today }}<small>/{{ stats.calories_goal }}</small></div><div class="stat-lbl">Calories</div></div>
+  </div>
+  <div class="stat-card col-span-2">
+    <div class="ring blue">
+      <svg viewBox="0 0 36 36">
+        <circle class="track" cx="18" cy="18" r="15.9"></circle>
+        <circle class="fill blue" cx="18" cy="18" r="15.9"
+                stroke-dasharray="100"
+                stroke-dashoffset="{{ 100 - ((stats.water_today/stats.water_goal)*100 if stats.water_goal else 0)|round|int }}"></circle>
+      </svg>
+      <span class="ring-ic material-symbols-outlined">water_drop</span>
+    </div>
+    <div style="flex:1">
+      <div class="stat-val">{{ (stats.water_today/1000)|round(1) }} <small>/ {{ (stats.water_goal/1000)|round(0)|int }}L</small></div>
+      <div class="stat-lbl">Water · {{ ((stats.water_today/stats.water_goal)*100)|round|int }}%</div>
+    </div>
+    <a href="{{ url_for('diet') }}" class="btn btn-ghost small-btn">+250ml</a>
+  </div>
+  <div class="stat-card col-span-2" style="flex-direction:column;align-items:stretch;gap:6px">
+    <div class="xp-top">
+      <span class="lvl">⚡ Level {{ stats.level.level }}</span>
+      <span class="amt">{{ stats.xp }} / {{ stats.xp + (100 - stats.level.into) }} XP</span>
+    </div>
+    <div class="xp-bar">
+      <div class="xp-track"><div class="xp-fill" style="width:{{ stats.level.into }}%"></div></div>
+    </div>
+    <div class="stat-lbl">Keep going — next level at {{ stats.xp + (100 - stats.level.into) }} XP</div>
+  </div>
+</div>
+
+<!-- Today's Daily Exercise Plan -->
+<section class="card">
+  <div class="card-head">
+    <h2>Today's Plan</h2>
+    <span class="chip lime">{{ today_row.title if today_row else today_plan.title }}</span>
+  </div>
+
+  {% if today_row and today_row.done %}
+    <div class="done-banner">🎉 Daily plan completed! Great job.</div>
+  {% endif %}
+
+  {% if today_plan and today_plan.exercises %}
+  <div class="plan-list">
+    {% for ex in today_plan.exercises %}
+    <div class="plan-item">
+      <img src="{{ ex.image_url }}" alt="{{ ex.name }}" loading="lazy"
+           onerror="this.style.display='none'">
+      <div class="plan-info">
+        <div class="plan-name">{{ ex.name }}</div>
+        <div class="plan-meta">{{ ex.muscle }} · {{ ex.equipment }}</div>
+      </div>
+      <span class="plan-sets">{{ ex.sets }} × {{ ex.reps }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('plan_done') }}" style="margin-top:12px">
+    <input type="hidden" name="done" value="1">
+    <button class="btn btn-success btn-block" {% if today_row and today_row.done %}disabled{% endif %}>
+      <span class="material-symbols-outlined">check_circle</span> Mark Daily Plan Done (+20 XP)
+    </button>
+  </form>
+  {% else %}
+  <p class="muted">No plan for today yet — <a href="{{ url_for('workout') }}">open workouts</a>.</p>
+  {% endif %}
+</section>
+
+<!-- Quick actions -->
+<div class="quick-grid">
+  <a href="{{ url_for('weight') }}" class="quick-act">
+    <span class="material-symbols-outlined">scale</span><small>Log<br>Weight</small>
+  </a>
+  <a href="{{ url_for('diet') }}" class="quick-act blue">
+    <span class="material-symbols-outlined">add_circle</span><small>Add<br>Water</small>
+  </a>
+  <a href="{{ url_for('assistant') }}" class="quick-act">
+    <span class="material-symbols-outlined">mic</span><small>AI<br>Assistant</small>
+  </a>
+  <a href="{{ url_for('library') }}" class="quick-act blue">
+    <span class="material-symbols-outlined">video_library</span><small>Exercise<br>Library</small>
+  </a>
+</div>
+
+<!-- Week overview -->
+<section class="card">
+  <div class="card-head"><h2>This Week</h2><a class="link" href="{{ url_for('workout') }}">View →</a></div>
+  <div class="week-row">
+    {% for w in week %}
+    <div class="week-cell {{ 'done' if w.done else '' }}">
+      <div class="week-day">{{ w.date[8:10] }}</div>
+      <div class="week-dot"></div>
+      <small>{{ w.title.split()[0] }}</small>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Weight trend -->
+<section class="card">
+  <div class="card-head"><h2>Weight Trend</h2><a class="link" href="{{ url_for('weight') }}">Log →</a></div>
+  {% if weight_trend != '[]' %}
+  <canvas id="weightChart" height="120"></canvas>
+  {% else %}
+  <p class="muted">No weight data yet. <a href="{{ url_for('weight') }}">Log your weight</a></p>
+  {% endif %}
+</section>
+
+<!-- Recent activity + badges -->
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Recent</h2></div>
+    {% if recent_logs %}
+    <div class="feed">
+      {% for l in recent_logs %}
+      <div class="feed-item">
+        <span class="material-symbols-outlined">fitness_center</span>
+        <div><b>{{ l.exercise }}</b><br><small>{{ l.sets }} sets × {{ l.reps }} · {{ l.done_at[:10] }}</small></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No workouts yet — <a href="{{ url_for('workout') }}">start today's plan</a></p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Badges</h2><a class="link" href="{{ url_for('profile') }}">All →</a></div>
+    {% if badges %}
+    <div class="badge-row">
+      {% for b in badges %}
+      <div class="badge-mini" title="{{ b.name }}"><span>🏆</span><small>{{ b.name }}</small></div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">Complete workouts to earn badges!</p>
+    {% endif %}
+  </section>
+</div>
+
+<div class="quote card" style="text-align:center">
+  <p class="muted small" style="font-style:italic">"{{ quote }}"</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const wData = {{ weight_trend | safe }};
+if (wData.length > 1) {
+  const ctx = document.getElementById('weightChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels: wData.map((_, i) => 'D' + (i+1)), datasets: [{
+      data: wData, borderColor: '#d2f000', backgroundColor: 'rgba(210,240,0,.12)',
+      fill: true, tension: .35, pointRadius: 3, pointBackgroundColor: '#d2f000'
+    }]},
+    options: { plugins: { legend: { display: false } },
+      scales: { y: { grid: { color: '#2a2a2a' }, ticks: { color: '#909378' } },
+                x: { grid: { display: false }, ticks: { color: '#909378' } } } }
+  });
+}
+</script>
+{% endblock %}

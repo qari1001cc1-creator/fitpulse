@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Exercise Library - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'workout' %}
+
+<section class="card">
+  <div class="card-head"><h2>Library</h2><span class="chip lime">{{ exercises|length }} exercises</span></div>
+
+  <form method="get" class="search-bar">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search exercises...">
+    <button class="btn btn-primary" aria-label="Search"><span class="material-symbols-outlined">search</span></button>
+  </form>
+
+  <div class="filter-row">
+    <a class="filter-chip {{ '' if cat else 'on' }}" href="{{ url_for('library', q=q) }}">All</a>
+    {% for c in cats %}
+    <a class="filter-chip {{ 'on' if c==cat else '' }}" href="{{ url_for('library', cat=c, q=q) }}">{{ c }}</a>
+    {% endfor %}
+  </div>
+  <div class="filter-row small">
+    <a class="filter-chip {{ '' if not muscle else 'on' }}" href="{{ url_for('library', cat=cat, q=q) }}">All muscles</a>
+    {% for m in muscles[:14] %}
+    <a class="filter-chip {{ 'on' if m==muscle else '' }}" href="{{ url_for('library', cat=cat, muscle=m, q=q) }}">{{ m }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="ex-grid">
+  {% for e in exercises %}
+  <a class="ex-card" href="{{ url_for('exercise_detail', ex_id=e.id) }}">
+    <div class="ex-thumb">
+      <img src="{{ e.image_url }}" alt="{{ e.name }}" loading="lazy"
+           onerror="this.parentElement.classList.add('noimg')">
+      <span class="ex-diff {{ e.difficulty|lower }}">{{ e.difficulty }}</span>
+    </div>
+    <div class="ex-body">
+      <div class="ex-name">{{ e.name }}</div>
+      <div class="ex-meta">{{ e.muscle }} · {{ e.equipment }}</div>
+      <div class="ex-set">{{ e.default_sets }} × {{ e.default_reps }}</div>
+    </div>
+  </a>
+  {% else %}
+  <p class="muted">No exercises found.</p>
+  {% endfor %}
+</div>
+{% endblock %}

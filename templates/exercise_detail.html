@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ ex.name }} - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'workout' %}
+
+<a class="back-link" href="{{ url_for('library') }}"><span class="material-symbols-outlined" style="font-size:16px">arrow_back</span> Back to library</a>
+
+<section class="card ex-detail">
+  <div class="ex-detail-head">
+    <div class="ex-thumb big">
+      <img src="{{ ex.image_url }}" alt="{{ ex.name }}" onerror="this.parentElement.classList.add('noimg')">
+    </div>
+    <div>
+      <h1>{{ ex.name }}</h1>
+      <div class="chips">
+        <span class="chip">{{ ex.category }}</span>
+        <span class="chip">{{ ex.muscle }}</span>
+        <span class="chip">{{ ex.equipment }}</span>
+        <span class="chip lime diff-{{ ex.difficulty|lower }}">{{ ex.difficulty }}</span>
+      </div>
+      <div class="ex-presc">Recommended: <b>{{ ex.default_sets }} sets × {{ ex.default_reps }}</b></div>
+    </div>
+  </div>
+
+  <div class="video-wrap">
+    <iframe src="{{ ex.video_url }}" title="{{ ex.name }}" allowfullscreen></iframe>
+  </div>
+
+  <h3>How to do it</h3>
+  <p>{{ ex.instructions }}</p>
+
+  <form method="post" action="{{ url_for('workout_start') }}" class="form">
+    <input type="hidden" name="exercise" value="{{ ex.name }}">
+    <div class="row-3">
+      <label>Sets<input type="number" name="sets" value="{{ ex.default_sets }}" min="1"></label>
+      <label>Reps<input type="text" name="reps" value="{{ ex.default_reps }}"></label>
+      <label>Min<input type="number" name="duration_min" value="15" min="1"></label>
+    </div>
+    <button class="btn btn-success btn-block">
+      <span class="material-symbols-outlined">check</span> Log this exercise (+10 XP)
+    </button>
+  </form>
+</section>
+{% endblock %}

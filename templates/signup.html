@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - FitPulse{% endblock %}
+{% block bodyclass %}auth-page{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-logo">F</div>
+  <h1>Create your account</h1>
+  <p class="muted">Start your fitness journey with FitPulse</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in messages %}
+    <div class="flash flash-{{ cat }}">{{ m }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" class="form">
+    <label>Your Name
+      <input type="text" name="name" placeholder="e.g. Ahmed" required>
+    </label>
+    <label>Email
+      <input type="email" name="email" placeholder="you@example.com" required>
+    </label>
+    <label>Password
+      <input type="password" name="password" placeholder="Min 4 characters" required>
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Create Account →</button>
+  </form>
+  <p class="auth-alt">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+</div>
+{% endblock %}

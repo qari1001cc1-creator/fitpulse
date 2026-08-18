@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Notifications - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'dashboard' %}
+
+<section class="card">
+  <div class="card-head">
+    <h2>Notifications</h2>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-ghost small-btn" id="mark-all">Mark all read</button>
+    </div>
+  </div>
+  {% if items %}
+  <div class="notif-list" id="notif-list">
+    {% for n in items %}
+    <div class="notif-item {{ '' if n.read else 'unread' }}" data-id="{{ n.id }}">
+      <div class="notif-ic"><span class="material-symbols-outlined">{{ n.icon or 'notifications' }}</span></div>
+      <div class="notif-body">
+        <b>{{ n.title }}</b>
+        <p>{{ n.body }}</p>
+        <span class="muted tiny">{{ n.created_at }}</span>
+      </div>
+      {% if not n.read %}<span class="notif-dot"></span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No notifications yet. Complete tasks, earn badges and log water to see activity here!</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Device notifications</h2></div>
+  <p class="muted small" style="margin-bottom:10px">Allow notifications to get alerts on this device even when the app is not open.</p>
+  <button class="btn btn-primary btn-block" id="enable-notif">
+    <span class="material-symbols-outlined">notifications_active</span> Enable device notifications
+  </button>
+  <p class="muted tiny" id="notif-status" style="margin-top:8px"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const markAll = document.getElementById('mark-all');
+const list = document.getElementById('notif-list');
+const status = document.getElementById('notif-status');
+
+markAll.addEventListener('click', function(){
+  fetch('/api/notifications/read', { method:'POST', body:new FormData() });
+  document.querySelectorAll('.notif-item').forEach(function(it){
+    it.classList.remove('unread');
+    const dot = it.querySelector('.notif-dot');
+    if (dot) dot.remove();
+  });
+  updateBadge(0);
+});
+
+list.addEventListener('click', function(e){
+  const item = e.target.closest('.notif-item');
+  if (!item) return;
+  if (item.classList.contains('unread')){
+    item.classList.remove('unread');
+    const dot = item.querySelector('.notif-dot');
+    if (dot) dot.remove();
+    const fd = new FormData(); fd.append('id', item.dataset.id);
+    fetch('/api/notifications/read', { method:'POST', body: fd });
+  }
+});
+
+function updateBadge(n){
+  const b = document.getElementById('bell-count');
+  if (b){ b.textContent = n ? n : ''; b.style.display = n ? 'flex' : 'none'; }
+}
+
+const enableBtn = document.getElementById('enable-notif');
+enableBtn.addEventListener('click', function(){
+  if (!('Notification' in window)){
+    status.textContent = 'Notifications not supported in this browser.';
+    return;
+  }
+  Notification.requestPermission().then(function(perm){
+    status.textContent = perm === 'granted' ? 'Notifications enabled! You will get alerts here.' :
+                         (perm === 'denied' ? 'Permission blocked. Allow it in browser settings.' : 'You can enable later anytime.');
+    if (perm === 'granted') subscribePush();
+  });
+});
+
+function subscribePush(){
+  if (!navigator.serviceWorker || !window.PushManager) return;
+  fetch('/api/push/vapid').then(r=>r.json()).then(d=>{
+    if (!d.public) return;
+    const b64ToU8 = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+    navigator.serviceWorker.ready.then(reg=>{
+      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(d.public) })
+        .then(sub=>{
+          fetch('/api/push/subscribe', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.toJSON().keys }) });
+        }).catch(()=>{});
+    });
+  });
+}
+
+if ('Notification' in window && Notification.permission === 'granted') subscribePush();
+</script>
+{% endblock %}

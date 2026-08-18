@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Setup - FitPulse{% endblock %}
+{% block bodyclass %}onboarding-page{% endblock %}
+{% block content %}
+<div class="onboarding-wrap">
+  <div class="auth-logo">F</div>
+  <h1>Let's build your plan</h1>
+  <p class="muted">7 quick steps — we'll create your personalized Daily Exercise Plan</p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in messages %}
+    <div class="flash flash-{{ cat }}">{{ m }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post" id="onboard-form" class="form">
+    <div class="progress-bar"><div class="progress-fill" id="onboard-progress"></div></div>
+
+    <!-- Step 1 -->
+    <div class="onboard-step" data-step="1">
+      <h2>👤 Tell us about you</h2>
+      <label>Age
+        <input type="number" name="age" min="10" max="100" placeholder="e.g. 24" required>
+      </label>
+      <label>Gender
+        <select name="gender" required>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+        </select>
+      </label>
+      <div class="row-2">
+        <label>Height (cm)
+          <input type="number" name="height_cm" min="100" max="250" placeholder="e.g. 172" required>
+        </label>
+        <label>Weight (kg)
+          <input type="number" name="weight_kg" min="30" max="250" step="0.1" placeholder="e.g. 72" required>
+        </label>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="onboard-step" data-step="2" style="display:none">
+      <h2>🎯 What's your goal?</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="goal" value="lose_weight" required><span>🔥 Lose Weight</span></label>
+        <label class="choice"><input type="radio" name="goal" value="gain_muscle"><span>💪 Build Muscle</span></label>
+        <label class="choice"><input type="radio" name="goal" value="strength"><span>🏋️ Get Stronger</span></label>
+        <label class="choice"><input type="radio" name="goal" value="endurance"><span>🏃 Improve Endurance</span></label>
+        <label class="choice"><input type="radio" name="goal" value="stay_fit"><span>😊 Stay Fit</span></label>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="onboard-step" data-step="3" style="display:none">
+      <h2>📊 Activity level</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="activity_level" value="sedentary" required><span>🛋️ Sedentary</span></label>
+        <label class="choice"><input type="radio" name="activity_level" value="light"><span>🚶 Light</span></label>
+        <label class="choice"><input type="radio" name="activity_level" value="moderate"><span>🏃 Moderate</span></label>
+        <label class="choice"><input type="radio" name="activity_level" value="active"><span>🏋️ Active</span></label>
+        <label class="choice"><input type="radio" name="activity_level" value="very_active"><span>⚡ Very Active</span></label>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="onboard-step" data-step="4" style="display:none">
+      <h2>🧗 Training experience</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="experience" value="beginner" required><span>🌱 Beginner</span></label>
+        <label class="choice"><input type="radio" name="experience" value="intermediate"><span>💪 Intermediate</span></label>
+        <label class="choice"><input type="radio" name="experience" value="advanced"><span>🏆 Advanced</span></label>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="onboard-step" data-step="5" style="display:none">
+      <h2>📅 Days per week</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="days_per_week" value="2" required><span>2 days</span></label>
+        <label class="choice"><input type="radio" name="days_per_week" value="3"><span>3 days</span></label>
+        <label class="choice"><input type="radio" name="days_per_week" value="4"><span>4 days</span></label>
+        <label class="choice"><input type="radio" name="days_per_week" value="5"><span>5 days</span></label>
+        <label class="choice"><input type="radio" name="days_per_week" value="6"><span>6 days</span></label>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="onboard-step" data-step="6" style="display:none">
+      <h2>🏠 Where do you train?</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="workout_pref" value="gym" required><span>🏋️ Gym</span></label>
+        <label class="choice"><input type="radio" name="workout_pref" value="home"><span>🏠 Home</span></label>
+      </div>
+      <h2>🥗 Diet preference</h2>
+      <div class="choice-grid">
+        <label class="choice"><input type="radio" name="diet_pref" value="halal" required><span>🍗 Non-Veg / Halal</span></label>
+        <label class="choice"><input type="radio" name="diet_pref" value="vegetarian"><span>🥦 Vegetarian</span></label>
+        <label class="choice"><input type="radio" name="diet_pref" value="vegan"><span>🌱 Vegan</span></label>
+        <label class="choice"><input type="radio" name="diet_pref" value="keto"><span>🥑 Keto</span></label>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="onboard-step" data-step="7" style="display:none">
+      <h2>✨ You're all set!</h2>
+      <p class="muted">We'll calculate your BMI, BMR &amp; calorie targets and generate your personalized Daily Exercise Plan instantly.</p>
+    </div>
+
+    <div class="onboard-nav">
+      <button type="button" class="btn btn-ghost" id="onboard-prev" style="display:none">← Back</button>
+      <button type="button" class="btn btn-primary" id="onboard-next">Continue →</button>
+      <button type="submit" class="btn btn-success" id="onboard-submit" style="display:none">🎉 Build My Plan</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var steps = document.querySelectorAll('.onboard-step');
+  var cur = 0;
+  var progress = document.getElementById('onboard-progress');
+  var next = document.getElementById('onboard-next');
+  var prev = document.getElementById('onboard-prev');
+  var submit = document.getElementById('onboard-submit');
+
+  function show(i){
+    steps.forEach(function(s, idx){ s.style.display = (idx===i) ? '' : 'none'; });
+    progress.style.width = ((i+1)/steps.length*100)+'%';
+    prev.style.display = (i===0) ? 'none' : '';
+    next.style.display = (i===steps.length-1) ? 'none' : '';
+    submit.style.display = (i===steps.length-1) ? '' : 'none';
+  }
+  function valid(){
+    var step = steps[cur];
+    var checks = step.querySelectorAll('input[required], select[required]');
+    for (var i=0;i<checks.length;i++){
+      if (!checks[i].value) return false;
+    }
+    var radios = step.querySelectorAll('input[type=radio]');
+    if (radios.length){
+      var any = false;
+      radios.forEach(function(r){ if (r.checked) any = true; });
+      return any;
+    }
+    return true;
+  }
+  next.addEventListener('click', function(){
+    if (!valid()){ alert('Please answer this question to continue.'); return; }
+    if (cur < steps.length-1){ cur++; show(cur); }
+  });
+  prev.addEventListener('click', function(){
+    if (cur > 0){ cur--; show(cur); }
+  });
+  show(0);
+})();
+</script>
+{% endblock %}

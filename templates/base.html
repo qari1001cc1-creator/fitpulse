@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}FitPulse{% endblock %}</title>
+<meta name="description" content="FitPulse - AI Fitness, Workout & Diet Tracker">
+<meta name="theme-color" content="#131313">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FitPulse">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:wght@400;500;700;900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+
+<div class="ambient-bg">
+  <div class="blob blob-lime"></div>
+  <div class="blob blob-blue"></div>
+</div>
+
+{% block body %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="{{ url_for('dashboard') if user else url_for('landing') }}">
+      <span class="logo">F</span>
+      <span class="brandname">Fit<span>Pulse</span></span>
+    </a>
+    {% if user %}
+    <div class="topbar-user">
+      <span class="xp-chip">⚡ Lv {{ stats.level if stats else 1 }} · {{ profile.xp if profile else 0 }} XP</span>
+      <a href="{{ url_for('notifications_page') }}" class="bell" title="Notifications" aria-label="Notifications">
+        <span class="material-symbols-outlined">notifications</span>
+        <span class="bell-badge" id="bell-count" style="display:{{ 'flex' if notif_unread else 'none' }}">{{ notif_unread if notif_unread else '' }}</span>
+      </a>
+      <a href="{{ url_for('profile') }}" class="avatar" title="{{ user.name }}">{{ user.name[0]|upper }}</a>
+    </div>
+    {% endif %}
+  </div>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flashes">
+    {% for cat, m in messages %}
+    <div class="flash flash-{{ cat }}">{{ m }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<div class="app-shell">
+  <main class="content">
+  {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% if user %}
+{% set ep = request.endpoint or '' %}
+<nav class="bottomnav">
+  <div class="bottomnav-inner">
+    <a href="{{ url_for('dashboard') }}" class="nav-item {{ 'active' if ep in ['dashboard','profile'] }}">
+      <span class="nav-ic material-symbols-outlined">home</span><span>Home</span></a>
+    <a href="{{ url_for('workout') }}" class="nav-item {{ 'active' if ep in ['workout','library','exercise_detail'] }}">
+      <span class="nav-ic material-symbols-outlined">fitness_center</span><span>Workout</span></a>
+    <a href="{{ url_for('diet') }}" class="nav-item {{ 'active' if ep=='diet' }}">
+      <span class="nav-ic material-symbols-outlined">restaurant</span><span>Diet</span></a>
+    <a href="{{ url_for('assistant') }}" class="nav-item {{ 'active' if ep=='assistant' }}">
+      <span class="nav-ic material-symbols-outlined">smart_toy</span><span>AI Coach</span></a>
+    <a href="{{ url_for('reports') }}" class="nav-item {{ 'active' if ep in ['reports','reports_export'] }}">
+      <span class="nav-ic material-symbols-outlined">bar_chart</span><span>Progress</span></a>
+  </div>
+</nav>
+{% endif %}
+{% endblock %}
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('{{ url_for('static', filename='service-worker.js') }}').catch(function(){});
+}
+function refreshBell(){
+  fetch('/api/notifications/unread').then(r=>r.json()).then(d=>{
+    const b = document.getElementById('bell-count');
+    if (b){ b.textContent = d.count ? d.count : ''; b.style.display = d.count ? 'flex' : 'none'; }
+  }).catch(function(){});
+}
+{% if user %}
+refreshBell();
+setInterval(refreshBell, 30000);
+{% endif %}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

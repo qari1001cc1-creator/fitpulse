@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Diet - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'diet' %}
+
+<section class="card">
+  <div class="card-head">
+    <h2>Today's Nutrition</h2>
+    <a class="link" href="{{ url_for('profile') }}">Targets</a>
+  </div>
+  <div class="macro-grid">
+    <div class="macro-card"><div class="macro-val">{{ stats.calories_today }}<small>/{{ stats.calories_goal }}</small></div><div class="macro-lbl">🔥 Calories</div></div>
+    <div class="macro-card"><div class="macro-val">{{ macros.p|round|int }}<small>/{{ profile.protein }}g</small></div><div class="macro-lbl">🥩 Protein</div></div>
+    <div class="macro-card"><div class="macro-val">{{ macros.c|round|int }}<small>/{{ profile.carbs }}g</small></div><div class="macro-lbl">🍚 Carbs</div></div>
+    <div class="macro-card"><div class="macro-val">{{ macros.f|round|int }}<small>/{{ profile.fat }}g</small></div><div class="macro-lbl">🥑 Fat</div></div>
+  </div>
+  <div class="bmi-banner">
+    BMI <b>{{ profile.bmi }}</b> ({{ profile.bmi_category }}) · BMR <b>{{ profile.bmr }}</b> kcal · TDEE <b>{{ profile.tdee }}</b> kcal
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Log Food</h2></div>
+  <div class="search-bar">
+    <input type="text" id="food-search" placeholder="Search food (e.g. chicken, rice, banana)...">
+    <button class="btn btn-primary" id="food-search-btn" aria-label="Search"><span class="material-symbols-outlined">search</span></button>
+  </div>
+  <div id="food-results"></div>
+  <div class="quick-foods">
+    <span>Meal:</span>
+    {% for meal in ['breakfast','lunch','dinner','snack'] %}
+    <button class="chip-btn" data-meal="{{ meal }}">{{ meal|capitalize }}</button>
+    {% endfor %}
+  </div>
+  <form method="post" action="{{ url_for('diet_add') }}" class="form" id="food-form" style="margin-top:12px;display:none">
+    <input type="hidden" name="meal" id="food-meal" value="snack">
+    <input type="hidden" name="food" id="food-name">
+    <input type="hidden" name="calories" id="food-cal">
+    <input type="hidden" name="protein" id="food-pro">
+    <input type="hidden" name="carbs" id="food-carb">
+    <input type="hidden" name="fat" id="food-fat">
+    <div class="food-selected" id="food-selected"></div>
+    <button class="btn btn-success btn-block"><span class="material-symbols-outlined">add</span> Add to log (+5 XP)</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Today's Meals</h2></div>
+  {% if meals %}
+    {% for meal, items in meals.items() %}
+    <h4 class="meal-head">{{ meal|capitalize }}</h4>
+    {% for it in items %}
+    <div class="feed-item">
+      <span class="material-symbols-outlined">restaurant</span>
+      <div><b>{{ it.food }}</b><br><small>{{ it.calories }} kcal · P{{ it.protein }}g C{{ it.carbs }}g F{{ it.fat }}g</small></div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  {% else %}
+  <p class="muted">Nothing logged today yet.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Weekly Meal Plan</h2><span class="chip">Draft</span></div>
+  {% if plan.ai_text %}
+  <div class="ai-box">{{ plan.ai_text }}</div>
+  {% endif %}
+  <div class="meal-table">
+    {% for day, meals in plan.table.items() %}
+    <div class="meal-day"><b>{{ day }}</b><div>{{ meals }}</div></div>
+    {% endfor %}
+  </div>
+  <p class="muted tiny" style="margin-top:10px">Meal plan generated from your diet preference. Use AI Coach for a custom plan.</p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const qs = document.getElementById('food-search');
+const qb = document.getElementById('food-search-btn');
+const res = document.getElementById('food-results');
+let picked = null;
+
+function doSearch(){
+  const q = qs.value.trim();
+  if (q.length < 2){ return; }
+  res.innerHTML = '<p class="muted">Searching...</p>';
+  fetch('/diet/search?q=' + encodeURIComponent(q)).then(r=>r.json()).then(data=>{
+    let html = '';
+    if (data.foods.length){
+      html += '<h4>Local foods</h4>';
+      data.foods.forEach(f=>{ html += '<button class="food-opt" data-food=\''+JSON.stringify(f).replace(/'/g,'&#39;')+'\'>'+f.name+' <small>'+f.calories+' kcal</small></button>'; });
+    }
+    if (data.usda.length){
+      html += '<h4>USDA database</h4>';
+      data.usda.forEach(f=>{ html += '<button class="food-opt" data-food=\''+JSON.stringify(f).replace(/'/g,'&#39;')+'\'>'+f.name+' <small>'+f.calories+' kcal</small></button>'; });
+    }
+    if (data.recipes.length){
+      html += '<h4>Recipes (TheMealDB)</h4>';
+      data.recipes.forEach(r=>{ html += '<div class="recipe-opt"><img src="'+r.image+'" onerror="this.style.display=\'none\'"><div><b>'+r.name+'</b> <small>'+r.category+' · '+r.area+'</small></div>'+(r.video?'<a href="'+r.video+'" target="_blank"><span class="material-symbols-outlined">play_circle</span></a>':'')+'</div>'; });
+    }
+    if (!html) html = '<p class="muted">No results. Try another word.</p>';
+    res.innerHTML = html;
+    res.querySelectorAll('.food-opt').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        picked = JSON.parse(b.dataset.food.replace(/&#39;/g, "'"));
+        document.getElementById('food-name').value = picked.name;
+        document.getElementById('food-cal').value = picked.calories;
+        document.getElementById('food-pro').value = picked.protein;
+        document.getElementById('food-carb').value = picked.carbs;
+        document.getElementById('food-fat').value = picked.fat;
+        document.getElementById('food-selected').innerHTML = '<b>'+picked.name+'</b> — '+picked.calories+' kcal · P'+picked.protein+'g C'+picked.carbs+'g F'+picked.fat+'g';
+        document.getElementById('food-form').style.display = '';
+      });
+    });
+  }).catch(()=>{ res.innerHTML = '<p class="muted">Search failed.</p>'; });
+}
+qb.addEventListener('click', doSearch);
+qs.addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); doSearch(); }});
+document.querySelectorAll('.chip-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.getElementById('food-meal').value = b.dataset.meal;
+    document.querySelectorAll('.chip-btn').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+# secrets / local data
+.env
+data/
+vapid_private.pem
+__pycache__/
+*.pyc
+
+# apk / build artifacts
+apk/
+FitPulse.apk
+stitch_fitpulse_ai_coach
+stitch_fitpulse_ai_coach.zip
+
+# local launchers
+run.bat
+start.bat

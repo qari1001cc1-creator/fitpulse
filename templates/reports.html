@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Reports - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'reports' %}
+
+<section class="card">
+  <div class="card-head"><h2>Weekly Summary</h2><a class="link" href="{{ url_for('reports_export') }}">Export →</a></div>
+  <div class="stat-grid">
+    <div class="stat-card"><span class="stat-ic material-symbols-outlined">fitness_center</span><div><div class="stat-val">{{ days_workout }}<small> days</small></div><div class="stat-lbl">Worked out</div></div></div>
+    <div class="stat-card blue"><span class="stat-ic material-symbols-outlined">schedule</span><div><div class="stat-val">{{ total_duration }}<small> min</small></div><div class="stat-lbl">Active time</div></div></div>
+    <div class="stat-card"><span class="stat-ic material-symbols-outlined">local_fire_department</span><div><div class="stat-val">{{ total_calories }}<small> kcal</small></div><div class="stat-lbl">Burned</div></div></div>
+    <div class="stat-card blue"><span class="stat-ic material-symbols-outlined">water_drop</span><div><div class="stat-val">{{ avg_water }}<small> ml/day</small></div><div class="stat-lbl">Water avg</div></div></div>
+  </div>
+  <div class="stat-grid" style="margin-top:8px">
+    <div class="stat-card blue"><span class="stat-ic material-symbols-outlined">restaurant</span><div><div class="stat-val">{{ avg_cal }}<small> kcal</small></div><div class="stat-lbl">Avg intake</div></div></div>
+    <div class="stat-card"><span class="stat-ic material-symbols-outlined">monitor_weight</span><div><div class="stat-val">{{ weight_change }}<small> kg</small></div><div class="stat-lbl">Weight change</div></div></div>
+    <div class="stat-card"><span class="stat-ic material-symbols-outlined">emoji_events</span><div><div class="stat-val">{{ badges_total }}</div><div class="stat-lbl">Badges</div></div></div>
+    <div class="stat-card"><span class="stat-ic material-symbols-outlined">local_fire_department</span><div><div class="stat-val">{{ stats.streak }}<small> days</small></div><div class="stat-lbl">Streak</div></div></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Calories Burned</h2><span class="chip lime">7 days</span></div>
+  {% if week_workouts %}
+  <canvas id="calChart" height="120"></canvas>
+  {% else %}
+  <p class="muted">No workouts this week.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>All Badges</h2></div>
+  {% if badges %}
+  <div class="badge-grid">
+    {% for b in badges %}
+    <div class="badge-card"><span>🏆</span><b>{{ b.name }}</b><small>{{ b.earned_at[:10] }}</small></div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">No badges yet — complete your daily plan to earn XP and badges!</p>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const data = {{ week_workouts | safe }};
+if (data.length){
+  const days = {};
+  data.forEach(d=>{ days[d.date] = (days[d.date]||0) + d.cal; });
+  const labels = Object.keys(days);
+  const values = Object.values(days);
+  new Chart(document.getElementById('calChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ data:values, backgroundColor:'rgba(210,240,0,.85)', borderRadius:6, hoverBackgroundColor:'#d2f000' }]},
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{grid:{color:'#2a2a2a'},ticks:{color:'#909378'}}, x:{grid:{display:false},ticks:{color:'#909378'}} } }
+  });
+}
+</script>
+{% endblock %}

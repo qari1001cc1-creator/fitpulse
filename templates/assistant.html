@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}AI Coach - FitPulse{% endblock %}
+{% block content %}
+{% set active = 'assistant' %}
+
+<section class="chat-card">
+  <div class="chat-head">
+    <div class="chat-avatar"><span class="material-symbols-outlined" style="color:var(--bg)">smart_toy</span></div>
+    <div>
+      <b>FitPulse AI Coach</b>
+      <div class="muted small" id="chat-sub">Type, or tap the mic to speak</div>
+    </div>
+    <div class="chat-actions">
+      <button class="btn btn-ghost small-btn" id="tts-btn" title="Speaker on/off"><span class="material-symbols-outlined" style="font-size:18px">volume_off</span></button>
+    </div>
+  </div>
+
+  <div class="chat-log" id="chat-log">
+    {% for c in chats %}
+    <div class="msg msg-user"><div class="bubble">{{ c.message }}</div></div>
+    <div class="msg msg-ai"><div class="bubble ai-bubble">{{ c.reply }}</div></div>
+    {% endfor %}
+  </div>
+
+  <div id="voice-status"></div>
+
+  <div class="chat-input">
+    <button class="btn btn-ghost mic-btn" id="voice-btn" aria-label="Voice input" title="Voice input"><span class="material-symbols-outlined" style="font-size:20px">mic</span></button>
+    <input type="text" id="chat-text" placeholder="Ask me anything about fitness, diet, workouts...">
+    <button class="btn btn-primary" id="chat-send" aria-label="Send"><span class="material-symbols-outlined" style="font-size:20px">arrow_upward</span></button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Try asking</h2></div>
+  <div class="suggest-row">
+    <button class="chip-btn suggest">Create a quick workout for today</button>
+    <button class="chip-btn suggest">How much protein should I eat?</button>
+    <button class="chip-btn suggest">Motivate me!</button>
+    <button class="chip-btn suggest">Healthy dinner idea?</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='voice.js') }}"></script>
+<script>
+const log = document.getElementById('chat-log');
+const input = document.getElementById('chat-text');
+const send = document.getElementById('chat-send');
+const voiceBtn = document.getElementById('voice-btn');
+const ttsBtn = document.getElementById('tts-btn');
+const vStatus = document.getElementById('voice-status');
+const sub = document.getElementById('chat-sub');
+const TTS = {{ 1 if settings and settings.get('tts') else 0 }};
+let ttsEnabled = TTS;
+
+function addMsg(text, who){
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + who;
+  div.innerHTML = '<div class="bubble'+(who==='ai'?' ai-bubble':'')+'"></div>';
+  const bubble = div.querySelector('.bubble');
+  bubble.textContent = text;
+  if (who === 'ai'){
+    const vb = document.createElement('button');
+    vb.className = 'bubble-voice';
+    vb.title = 'Read aloud';
+    vb.setAttribute('aria-label', 'Read reply aloud');
+    vb.innerHTML = '<span class="material-symbols-outlined">volume_up</span>';
+    vb.addEventListener('click', ()=>{ if (window.speechSynthesis) speak(bubble.textContent); });
+    bubble.appendChild(vb);
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return bubble;
+}
+
+function ttsReflect(){
+  ttsBtn.classList.toggle('active', ttsEnabled);
+  ttsBtn.title = ttsEnabled ? 'Speaker on' : 'Speaker off';
+  ttsBtn.querySelector('.material-symbols-outlined').textContent = ttsEnabled ? 'volume_up' : 'volume_off';
+}
+
+function ask(text){
+  if (!text.trim()) return;
+  addMsg(text, 'user');
+  input.value = '';
+  const bubble = addMsg('Thinking...', 'ai');
+  const fd = new FormData();
+  fd.append('message', text);
+  fetch('/api/chat', { method:'POST', body: fd })
+    .then(r=>r.json())
+    .then(data=>{
+      bubble.textContent = data.reply || 'Sorry, I could not respond right now.';
+      if (ttsEnabled && window.speechSynthesis) speak(bubble.textContent);
+    })
+    .catch(()=>{ bubble.textContent = 'Network error. Please try again.'; });
+}
+
+send.addEventListener('click', ()=>ask(input.value));
+input.addEventListener('keydown', e=>{ if (e.key==='Enter') ask(input.value); });
+
+if (voiceBtn){
+  voiceBtn.addEventListener('click', function(){
+    startVoice(function(transcript){
+      ask(transcript);
+    }, voiceBtn, vStatus, sub);
+  });
+}
+
+ttsBtn.addEventListener('click', function(){
+  ttsEnabled = !ttsEnabled;
+  ttsReflect();
+  if (ttsEnabled){
+    const last = log.querySelector('.msg-ai:last-of-type .bubble');
+    if (last && window.speechSynthesis) speak(last.textContent);
+  } else if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+});
+ttsReflect();
+
+document.querySelectorAll('.suggest').forEach(b=>{
+  b.addEventListener('click', ()=>ask(b.textContent.trim()));
+});
+</script>
+{% endblock %}

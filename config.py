@@ -44,7 +44,7 @@ def openrouter_key():
 
 
 def openrouter_model():
-    return get("OPENROUTER_MODEL", "deepseek/deepseek-chat-v3-0324:free")
+    return get("OPENROUTER_MODEL", "google/gemma-4-31b-it:free")
 
 
 def groq_key():
@@ -52,7 +52,7 @@ def groq_key():
 
 
 def groq_model():
-    return get("GROQ_MODEL", "llama-3.3-70b-versatile")
+    return get("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
 def usda_key():

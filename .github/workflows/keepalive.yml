@@ -9,5 +9,5 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render app to keep it awake
-        run: curl -fsS https://fitpulse.onrender.com/ || true
+      - name: Ping FitPulse server to keep it awake
+        run: curl -fsS https://fitpulse-fitness.duckdns.org/ || true

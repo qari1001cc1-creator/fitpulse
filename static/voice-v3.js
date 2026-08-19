@@ -139,7 +139,7 @@ function beginRecording() {
       recorder.onstop = function () { handleRecStop(); };
       recorder.start();
       voiceStatus('');
-      recUI(true, 'Tap to send, or press & hold to talk');
+      recUI(true, holdMode ? 'Release to send' : 'Tap to send, or press & hold to talk');
       startRecTimer();
     } catch (err) {
       resetRecordingState();

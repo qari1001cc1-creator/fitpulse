@@ -31,7 +31,12 @@
   </div>
   <div class="voice-rec" id="voice-rec" hidden>
     <button class="btn btn-ghost rec-cancel" id="voice-cancel" aria-label="Cancel recording" title="Cancel"><span class="material-symbols-outlined">close</span></button>
-    <div class="voice-rec-info"><span class="voice-rec-dot"></span><span class="voice-rec-timer" id="voice-timer">0:00</span></div>
+    <div class="voice-rec-info">
+      <span class="voice-rec-dot"></span>
+      <span class="voice-rec-timer" id="voice-timer">0:00</span>
+      <span class="voice-rec-eq"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="voice-rec-hint" id="voice-rec-hint">Recording…</span>
+    </div>
     <button class="btn btn-primary rec-send" id="voice-send" aria-label="Send voice message" title="Send"><span class="material-symbols-outlined">arrow_upward</span></button>
   </div>
 </section>
@@ -48,7 +53,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='voice-v2.js') }}"></script>
+<script src="{{ url_for('static', filename='voice-v3.js') }}"></script>
 <script>
 const log = document.getElementById('chat-log');
 const input = document.getElementById('chat-text');

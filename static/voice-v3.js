@@ -1,4 +1,6 @@
-/* FitPulse voice-v2 - works on Chrome, Edge, Safari AND the Android WebView app */
+/* FitPulse voice-v3 - MediaRecorder primary (proven E2E, works in Chrome + WebView),
+   SpeechRecognition fallback for browsers without MediaRecorder.
+   Never leaves the mic stuck: getUserMedia has a timeout; all paths reset state. */
 var synth = window.speechSynthesis;
 var cachedVoices = [];
 if (synth && typeof synth.getVoices === 'function') {
@@ -30,8 +32,9 @@ function speak(text) {
   synth.speak(u);
 }
 
-var SPEECH = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 var REC = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+var SPEECH = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+var engine = REC ? 'rec' : (SPEECH ? 'sr' : 'none');
 
 var recorder = null;
 var recStream = null;
@@ -42,8 +45,10 @@ var holdTimer = null;
 var holdMode = false;
 var recording = false;
 var pendingSend = false;
+var gumTimer = null;
 var recCapMs = 60000;
 var sr = null;
+var srCancel = false;
 
 function voiceStatus(msg, isErr) {
   var el = document.getElementById('voice-status');
@@ -65,18 +70,32 @@ function updateRecTimer() {
   el.textContent = m + ':' + (s < 10 ? '0' + s : s);
 }
 
-function recUI(on) {
+function recUI(on, hint) {
   var bar = document.getElementById('voice-rec');
   var input = document.getElementById('chat-input');
   var btn = document.getElementById('voice-btn');
+  var hintEl = document.getElementById('voice-rec-hint');
   if (bar) bar.hidden = !on;
   if (input) input.classList.toggle('recording', on);
+  if (hintEl) hintEl.textContent = hint || 'Recording…';
   if (btn) {
     btn.classList.toggle('rec-on', on);
     var ic = btn.querySelector('.material-symbols-outlined');
     if (ic) ic.textContent = on ? 'graphic_eq' : 'mic';
   }
   if (on) updateRecTimer();
+}
+
+function resetRecordingState() {
+  if (gumTimer) { clearTimeout(gumTimer); gumTimer = null; }
+  if (recTimer) { clearInterval(recTimer); recTimer = null; }
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  holdMode = false;
+  recording = false;
+  pendingSend = false;
+  recChunks = [];
+  if (recStream) { stopTracks(recStream); recStream = null; }
+  recorder = null;
 }
 
 function startRecTimer() {
@@ -94,10 +113,117 @@ function startRecTimer() {
   }, 1000);
 }
 
-/* ---------- Speech Recognition engine (best on mobile Chrome / desktop) ---------- */
+/* ---------- MediaRecorder engine (PRIMARY) ---------- */
+function beginRecording() {
+  if (recording) return;
+  recording = true;
+  recChunks = [];
+  holdMode = false;
+  pendingSend = false;
+  voiceStatus('Requesting microphone…');
+  if (gumTimer) clearTimeout(gumTimer);
+  gumTimer = setTimeout(function () {
+    if (!recording) return;
+    resetRecordingState();
+    recUI(false);
+    voiceStatus('Voice: the microphone did not respond. Make sure the mic permission for this app is ON, then tap again.', true);
+  }, 12000);
+
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+    if (gumTimer) { clearTimeout(gumTimer); gumTimer = null; }
+    if (!recording) { stopTracks(stream); return; }
+    recStream = stream;
+    try {
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = function (e) { if (e.data && e.data.size) recChunks.push(e.data); };
+      recorder.onstop = function () { handleRecStop(); };
+      recorder.start();
+      voiceStatus('');
+      recUI(true, 'Tap to send, or press & hold to talk');
+      startRecTimer();
+    } catch (err) {
+      resetRecordingState();
+      stopTracks(stream);
+      recUI(false);
+      voiceStatus('Voice: recording could not start on this device.', true);
+    }
+  }).catch(function () {
+    if (gumTimer) { clearTimeout(gumTimer); gumTimer = null; }
+    recording = false;
+    recUI(false);
+    voiceStatus('Voice: microphone permission needed. Enable it for this app/site, then tap the mic again.', true);
+  });
+}
+
+function finishRecording(sendIt) {
+  if (!recording) return;
+  recording = false;
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  holdMode = false;
+  if (recTimer) { clearInterval(recTimer); recTimer = null; }
+  pendingSend = sendIt;
+  if (recorder && recorder.state !== 'inactive') {
+    try { recorder.stop(); } catch (e) { handleRecStop(); }
+  } else {
+    handleRecStop();
+  }
+}
+
+function cancelRecording() {
+  if (!recording && !recorder) return;
+  pendingSend = false;
+  recording = false;
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  holdMode = false;
+  if (recTimer) { clearInterval(recTimer); recTimer = null; }
+  if (recorder && recorder.state !== 'inactive') {
+    try { recorder.stop(); } catch (e) {}
+  } else {
+    resetRecordingState();
+    recUI(false);
+    voiceStatus('');
+  }
+}
+
+function handleRecStop() {
+  var mime = recorder ? recorder.mimeType : 'audio/webm';
+  var chunks = recChunks.slice();
+  var shouldSend = pendingSend;
+  resetRecordingState();
+  recUI(false);
+  if (shouldSend && chunks.length) {
+    sendAudio(chunks, mime);
+  } else {
+    voiceStatus('');
+  }
+}
+
+function sendAudio(chunks, mime) {
+  var blob = new Blob(chunks, { type: mime || 'audio/webm' });
+  var fd = new FormData();
+  fd.append('audio', blob, 'voice.webm');
+  voiceStatus('Transcribing…');
+  fetch('/api/stt', { method: 'POST', body: fd })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.text) {
+        voiceStatus('');
+        if (window.ask) window.ask(d.text);
+        else voiceStatus('Voice: got "' + d.text + '" but the chat could not be updated.', true);
+      } else {
+        voiceStatus('Voice: I couldn\'t hear clearly. Please speak closer to the mic and try again.', true);
+      }
+    })
+    .catch(function () {
+      voiceStatus('Voice: transcription failed. Check your internet connection and try again.', true);
+    });
+}
+
+/* ---------- SpeechRecognition engine (fallback only) ---------- */
 function startSR(onDone) {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var r = new SR();
+  var r;
+  try { r = new SR(); } catch (e) { return false; }
   sr = r;
   r.lang = 'en-US';
   r.interimResults = false;
@@ -118,7 +244,7 @@ function startSR(onDone) {
     var err = (e && e.error) || 'unknown';
     sr = null;
     srCancel = false;
-    voiceStatus('Voice: ' + err + '. Allow microphone permission in your browser settings, then try again.', true);
+    voiceStatus('Voice: ' + err + '. Allow microphone permission for this app/site, then try again.', true);
   };
   r.onend = function () {
     sr = null;
@@ -129,7 +255,7 @@ function startSR(onDone) {
   try {
     r.start();
     recUI(true);
-    voiceStatus('Listening... speak now');
+    voiceStatus('Listening… speak now');
     return true;
   } catch (err) {
     sr = null;
@@ -143,159 +269,60 @@ function stopSR() {
   recUI(false);
 }
 
-/* ---------- MediaRecorder engine (Android WebView app / Firefox) ---------- */
-function beginRecording() {
-  if (recording) return;
-  recording = true;
-  recChunks = [];
-  holdMode = false;
-  pendingSend = false;
-  voiceStatus('Requesting microphone...');
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
-    if (!recording) { stopTracks(stream); return; }
-    recStream = stream;
-    try {
-      recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = function (e) { if (e.data && e.data.size) recChunks.push(e.data); };
-      recorder.onstop = function () { handleRecStop(); };
-      recorder.start();
-      voiceStatus('Recording... tap the send button to finish');
-      recUI(true);
-      startRecTimer();
-    } catch (err) {
-      stopTracks(stream);
-      recording = false;
-      recUI(false);
-      voiceStatus('Voice: could not start recording. Check microphone permission.', true);
-    }
-  }).catch(function () {
-    recording = false;
-    recUI(false);
-    voiceStatus('Voice: microphone permission needed. Enable it in your browser/app settings, then try again.', true);
-  });
-}
-
-function finishRecording(sendIt) {
-  if (!recording) return;
-  recording = false;
-  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-  holdMode = false;
-  if (recTimer) { clearInterval(recTimer); recTimer = null; }
-  pendingSend = sendIt;
-  if (recorder && recorder.state !== 'inactive') {
-    try { recorder.stop(); } catch (e) {}
-  } else {
-    handleRecStop();
-  }
-}
-
-function cancelRecording() {
-  recording = false;
-  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-  holdMode = false;
-  if (recTimer) { clearInterval(recTimer); recTimer = null; }
-  pendingSend = false;
-  if (recorder && recorder.state !== 'inactive') {
-    try { recorder.stop(); } catch (e) {}
-  }
-  if (recStream) { stopTracks(recStream); recStream = null; }
-  recChunks = [];
-  recorder = null;
-  recUI(false);
-  voiceStatus('');
-}
-
-function handleRecStop() {
-  if (recStream) { stopTracks(recStream); recStream = null; }
-  recUI(false);
-  var mime = recorder ? recorder.mimeType : 'audio/webm';
-  var chunks = recChunks.slice();
-  recChunks = [];
-  recorder = null;
-  var shouldSend = pendingSend;
-  pendingSend = false;
-  if (shouldSend && chunks.length) {
-    sendAudio(chunks, mime);
-  } else if (!shouldSend) {
-    voiceStatus('');
-  }
-}
-
-function sendAudio(chunks, mime) {
-  var blob = new Blob(chunks, { type: mime || 'audio/webm' });
-  var fd = new FormData();
-  fd.append('audio', blob, 'voice.webm');
-  voiceStatus('Transcribing...');
-  fetch('/api/stt', { method: 'POST', body: fd })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d && d.text) {
-        voiceStatus('');
-        if (window.ask) window.ask(d.text);
-      } else {
-        voiceStatus('Voice: could not understand the audio. Please speak clearly and try again.', true);
-      }
-    })
-    .catch(function () {
-      voiceStatus('Voice: transcription failed. Check your internet connection.', true);
-    });
-}
-
 /* ---------- button wiring ---------- */
 document.addEventListener('DOMContentLoaded', function () {
   var voiceBtn = document.getElementById('voice-btn');
   var vSend = document.getElementById('voice-send');
   var vCancel = document.getElementById('voice-cancel');
   if (!voiceBtn) return;
-  var srCancel = false;
 
-  function sendFromSR(t) {
-    srCancel = false;
-    if (window.ask && t) window.ask(t);
+  function micDown(e) {
+    if (e.cancelable) e.preventDefault();
+    if (recording) { cancelRecording(); return; }
+    holdMode = false;
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(function () { holdMode = true; recUI(true, 'Release to send'); }, 400);
+    beginRecording();
+  }
+  function micUp() {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (recording && holdMode) finishRecording(true);
+  }
+  function micCancel() {
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    if (recording && holdMode) finishRecording(true);
+    else if (recording) cancelRecording();
   }
 
-  function useRecorder() {
-    voiceBtn.addEventListener('pointerdown', function (e) {
-      e.preventDefault();
-      if (recording) { cancelRecording(); return; }
-      holdMode = false;
-      holdTimer = setTimeout(function () { holdMode = true; }, 400);
-      beginRecording();
-    });
-    voiceBtn.addEventListener('pointerup', function () {
-      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-      if (recording && holdMode) finishRecording(true);
-    });
-    voiceBtn.addEventListener('pointercancel', function () {
-      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-      if (recording) cancelRecording();
-    });
+  function bindHold(el, down, up, cancel) {
+    if (window.PointerEvent) {
+      el.addEventListener('pointerdown', down);
+      el.addEventListener('pointerup', up);
+      el.addEventListener('pointercancel', cancel);
+    } else {
+      el.addEventListener('touchstart', down, { passive: false });
+      el.addEventListener('touchend', up);
+      el.addEventListener('touchcancel', cancel);
+    }
+  }
+
+  if (engine === 'rec') {
+    bindHold(voiceBtn, micDown, micUp, micCancel);
     if (vSend) vSend.addEventListener('click', function () { finishRecording(true); });
     if (vCancel) vCancel.addEventListener('click', function () { cancelRecording(); });
-  }
-
-  function useSpeech() {
+  } else if (engine === 'sr') {
     voiceBtn.addEventListener('click', function () {
       if (sr) { stopSR(); return; }
       srCancel = false;
-      if (startSR(sendFromSR)) {
-        voiceStatus('Listening... speak now');
-      } else {
-        voiceStatus('Voice: could not start speech recognition. Trying the recorder...', true);
-        useRecorder();
+      if (!startSR(function (t) { srCancel = false; if (window.ask && t) window.ask(t); })) {
+        voiceStatus('Voice: could not start speech recognition. Check microphone permission.', true);
       }
     });
     if (vSend) vSend.addEventListener('click', function () { srCancel = false; stopSR(); });
     if (vCancel) vCancel.addEventListener('click', function () { srCancel = true; stopSR(); });
-  }
-
-  if (SPEECH) {
-    useSpeech();
-  } else if (REC) {
-    useRecorder();
   } else {
     voiceBtn.addEventListener('click', function () {
-      voiceStatus('Voice input is not supported in this browser. Please use Chrome, Edge, or the app.', true);
+      voiceStatus('Voice input is not supported on this device. Please use Chrome or the app.', true);
     });
   }
 });

@@ -801,11 +801,16 @@ input[type="checkbox"] { width: auto; }
 }
 .bubble-voice:hover { color: var(--primary); border-color: var(--primary); }
 .bubble-voice .material-symbols-outlined { font-size: 14px; }
-.chat-input .mic-btn { width: 44px; padding: 0; border-radius: var(--r-md); flex-shrink: 0; }
+.chat-input .mic-btn { width: 44px; padding: 0; border-radius: var(--r-md); flex-shrink: 0; position: relative; }
 .listening { animation: pulse 1s ease-in-out infinite; border-color: var(--secondary) !important; color: var(--secondary) !important; box-shadow: 0 0 14px rgba(0,238,252,.45); }
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-.mic-btn { touch-action: none; }
-.mic-btn.rec-on { color: #ff3b30 !important; border-color: #ff3b30 !important; box-shadow: 0 0 14px rgba(255,59,48,.4); }
+.mic-btn { touch-action: none; -webkit-user-select: none; user-select: none; }
+.mic-btn.rec-on { color: #ff3b30 !important; border-color: #ff3b30 !important; box-shadow: 0 0 14px rgba(255,59,48,.4); animation: mic-ring 1.6s ease-out infinite; }
+@keyframes mic-ring {
+  0% { box-shadow: 0 0 0 0 rgba(255,59,48,.35); }
+  70% { box-shadow: 0 0 0 10px rgba(255,59,48,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
+}
 .chat-input.recording input,
 .chat-input.recording #chat-send { display: none; }
 .voice-rec {
@@ -818,7 +823,16 @@ input[type="checkbox"] { width: auto; }
 .voice-rec .btn { width: 44px; padding: 0; border-radius: var(--r-md); flex-shrink: 0; }
 .voice-rec-info { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .voice-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff3b30; animation: pulse 1s ease-in-out infinite; flex-shrink: 0; }
-.voice-rec-timer { font-family: var(--font-mono); font-size: 14px; color: var(--on-surface); }
+.voice-rec-timer { font-family: var(--font-mono); font-size: 14px; color: var(--on-surface); flex-shrink: 0; }
+.voice-rec-eq { display: inline-flex; align-items: center; gap: 3px; height: 18px; flex-shrink: 0; }
+.voice-rec-eq i { width: 3px; border-radius: 2px; background: var(--primary); transform-origin: bottom; animation: eq-bounce 1s ease-in-out infinite; }
+.voice-rec-eq i:nth-child(1) { height: 8px; animation-delay: 0s; }
+.voice-rec-eq i:nth-child(2) { height: 14px; animation-delay: .15s; }
+.voice-rec-eq i:nth-child(3) { height: 10px; animation-delay: .3s; }
+.voice-rec-eq i:nth-child(4) { height: 16px; animation-delay: .45s; }
+.voice-rec-eq i:nth-child(5) { height: 12px; animation-delay: .6s; }
+@keyframes eq-bounce { 0%,100% { transform: scaleY(.45); } 50% { transform: scaleY(1); } }
+.voice-rec-hint { font-size: 12px; color: var(--secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #voice-status { min-height: 0; padding: 4px 16px 10px; font-size: 12px; color: var(--secondary); text-align: center; }
 #voice-status.err { color: #ff6b6b; font-weight: 600; }
 @keyframes mic-shake { 0%,100% { transform: translateX(0); } 20%,60% { transform: translateX(-3px); } 40%,80% { transform: translateX(3px); } }

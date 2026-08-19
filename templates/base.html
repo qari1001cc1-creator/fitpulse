@@ -35,7 +35,7 @@
     </a>
     {% if user %}
     <div class="topbar-user">
-      <span class="xp-chip">⚡ Lv {{ stats.level if stats else 1 }} · {{ profile.xp if profile else 0 }} XP</span>
+      <span class="xp-chip">⚡ Lv {{ stats.level.level if stats and stats.level else 1 }} · {{ profile.xp if profile else 0 }} XP</span>
       <a href="{{ url_for('notifications_page') }}" class="bell" title="Notifications" aria-label="Notifications">
         <span class="material-symbols-outlined">notifications</span>
         <span class="bell-badge" id="bell-count" style="display:{{ 'flex' if notif_unread else 'none' }}">{{ notif_unread if notif_unread else '' }}</span>

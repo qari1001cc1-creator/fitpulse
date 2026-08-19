@@ -1,6 +1,6 @@
-/* FitPulse voice-v3 - MediaRecorder primary (proven E2E, works in Chrome + WebView),
-   SpeechRecognition fallback for browsers without MediaRecorder.
-   Never leaves the mic stuck: getUserMedia has a timeout; all paths reset state. */
+/* FitPulse voice-v4 - MediaRecorder primary, SpeechRecognition fallback.
+   getUserMedia retries on transient permission errors (fixes WebView race),
+   shows the real error name so issues are easy to diagnose. */
 var synth = window.speechSynthesis;
 var cachedVoices = [];
 if (synth && typeof synth.getVoices === 'function') {
@@ -129,6 +129,11 @@ function beginRecording() {
     voiceStatus('Voice: the microphone did not respond. Make sure the mic permission for this app is ON, then tap again.', true);
   }, 12000);
 
+  gumAttempt(0);
+}
+
+function gumAttempt(attempt) {
+  if (!recording) return;
   navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
     if (gumTimer) { clearTimeout(gumTimer); gumTimer = null; }
     if (!recording) { stopTracks(stream); return; }
@@ -147,11 +152,20 @@ function beginRecording() {
       recUI(false);
       voiceStatus('Voice: recording could not start on this device.', true);
     }
-  }).catch(function () {
+  }).catch(function (e) {
+    if (!recording) return;
+    var name = (e && e.name) || 'error';
+    var retryable = name === 'NotAllowedError' || name === 'PermissionDeniedError' ||
+                    name === 'AbortError' || name === 'SecurityError' || name === 'NotReadableError';
+    if (attempt < 2 && retryable) {
+      voiceStatus('Requesting microphone… (retry ' + (attempt + 1) + ')');
+      setTimeout(function () { gumAttempt(attempt + 1); }, 900);
+      return;
+    }
     if (gumTimer) { clearTimeout(gumTimer); gumTimer = null; }
     recording = false;
     recUI(false);
-    voiceStatus('Voice: microphone permission needed. Enable it for this app/site, then tap the mic again.', true);
+    voiceStatus('Voice: mic blocked (' + name + '). In the app: Settings → Apps → FitPulse → Permissions → Microphone = Allow, then tap the mic again.', true);
   });
 }
 

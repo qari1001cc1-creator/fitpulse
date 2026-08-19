@@ -1,4 +1,4 @@
-/* FitPulse voice helpers - MediaRecorder + Groq Whisper STT, with Web Speech fallback */
+/* FitPulse voice-v2 - works on Chrome, Edge, Safari AND the Android WebView app */
 var synth = window.speechSynthesis;
 var cachedVoices = [];
 if (synth && typeof synth.getVoices === 'function') {
@@ -30,7 +30,9 @@ function speak(text) {
   synth.speak(u);
 }
 
-/* ---------- MediaRecorder voice (works in Chrome, Edge AND the Android WebView app) ---------- */
+var SPEECH = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+var REC = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
 var recorder = null;
 var recStream = null;
 var recChunks = [];
@@ -41,15 +43,18 @@ var holdMode = false;
 var recording = false;
 var pendingSend = false;
 var recCapMs = 60000;
-var canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+var sr = null;
+
+function voiceStatus(msg, isErr) {
+  var el = document.getElementById('voice-status');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.classList.toggle('err', !!isErr);
+  el.style.display = msg ? 'block' : 'none';
+}
 
 function stopTracks(stream) {
   if (stream && stream.getTracks) stream.getTracks().forEach(function (t) { t.stop(); });
-}
-
-function voiceStatus(msg) {
-  var el = document.getElementById('voice-status');
-  if (el) el.textContent = msg || '';
 }
 
 function updateRecTimer() {
@@ -89,6 +94,56 @@ function startRecTimer() {
   }, 1000);
 }
 
+/* ---------- Speech Recognition engine (best on mobile Chrome / desktop) ---------- */
+function startSR(onDone) {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var r = new SR();
+  sr = r;
+  r.lang = 'en-US';
+  r.interimResults = false;
+  r.continuous = false;
+  r.maxAlternatives = 1;
+  r.onresult = function (e) {
+    var t = '';
+    for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+    var cancel = srCancel;
+    r.onend = null;
+    sr = null;
+    srCancel = false;
+    voiceStatus('');
+    recUI(false);
+    if (!cancel && onDone) onDone(t);
+  };
+  r.onerror = function (e) {
+    var err = (e && e.error) || 'unknown';
+    sr = null;
+    srCancel = false;
+    voiceStatus('Voice: ' + err + '. Allow microphone permission in your browser settings, then try again.', true);
+  };
+  r.onend = function () {
+    sr = null;
+    srCancel = false;
+    voiceStatus('');
+    recUI(false);
+  };
+  try {
+    r.start();
+    recUI(true);
+    voiceStatus('Listening... speak now');
+    return true;
+  } catch (err) {
+    sr = null;
+    return false;
+  }
+}
+
+function stopSR() {
+  if (sr) { try { sr.stop(); } catch (e) {} sr = null; }
+  voiceStatus('');
+  recUI(false);
+}
+
+/* ---------- MediaRecorder engine (Android WebView app / Firefox) ---------- */
 function beginRecording() {
   if (recording) return;
   recording = true;
@@ -111,14 +166,12 @@ function beginRecording() {
       stopTracks(stream);
       recording = false;
       recUI(false);
-      voiceStatus('');
-      startSpeechFallback();
+      voiceStatus('Voice: could not start recording. Check microphone permission.', true);
     }
   }).catch(function () {
     recording = false;
     recUI(false);
-    voiceStatus('');
-    startSpeechFallback();
+    voiceStatus('Voice: microphone permission needed. Enable it in your browser/app settings, then try again.', true);
   });
 }
 
@@ -180,70 +233,12 @@ function sendAudio(chunks, mime) {
         voiceStatus('');
         if (window.ask) window.ask(d.text);
       } else {
-        voiceStatus('Voice: could not understand audio. Try again.');
+        voiceStatus('Voice: could not understand the audio. Please speak clearly and try again.', true);
       }
     })
     .catch(function () {
-      voiceStatus('Voice: transcription failed. Check your connection.');
+      voiceStatus('Voice: transcription failed. Check your internet connection.', true);
     });
-}
-
-/* ---------- Web Speech API fallback (desktop browsers) ---------- */
-var speechRecognitionSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-var voiceActive = false;
-var activeRec = null;
-
-function setListening(btn, statusEl, on, err) {
-  voiceActive = on;
-  if (btn) btn.classList.toggle('listening', on);
-  if (statusEl) statusEl.textContent = err ? ('Voice: ' + err) : (on ? 'Listening... speak now' : '');
-}
-
-function startVoice(callback, btn, statusEl, sub) {
-  if (!speechRecognitionSupported) {
-    setListening(btn, statusEl, false, 'not supported. Use Chrome, Edge, or the app.');
-    return;
-  }
-  if (voiceActive) { stopVoice(); setListening(btn, statusEl, false); return; }
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  var rec = new SR();
-  activeRec = rec;
-  rec.lang = 'en-US';
-  rec.interimResults = false;
-  rec.maxAlternatives = 1;
-  setListening(btn, statusEl, true);
-  rec.onresult = function (e) {
-    var transcript = e.results[0][0].transcript;
-    setListening(btn, statusEl, false);
-    activeRec = null;
-    if (callback) callback(transcript);
-  };
-  rec.onerror = function (e) {
-    setListening(btn, statusEl, false, e.error || 'unknown error');
-    activeRec = null;
-  };
-  rec.onend = function () {
-    setListening(btn, statusEl, false);
-    activeRec = null;
-  };
-  rec.start();
-}
-
-function stopVoice() {
-  if (activeRec) { try { activeRec.stop(); } catch (e) {} }
-  activeRec = null;
-  voiceActive = false;
-}
-
-function startSpeechFallback() {
-  if (!speechRecognitionSupported) {
-    voiceStatus('Voice input needs microphone permission or the app.');
-    return;
-  }
-  var btn = document.getElementById('voice-btn');
-  var statusEl = document.getElementById('voice-status');
-  var sub = document.getElementById('chat-sub');
-  startVoice(function (t) { if (window.ask) window.ask(t); }, btn, statusEl, sub);
 }
 
 /* ---------- button wiring ---------- */
@@ -251,8 +246,15 @@ document.addEventListener('DOMContentLoaded', function () {
   var voiceBtn = document.getElementById('voice-btn');
   var vSend = document.getElementById('voice-send');
   var vCancel = document.getElementById('voice-cancel');
+  if (!voiceBtn) return;
+  var srCancel = false;
 
-  if (voiceBtn && canRecord) {
+  function sendFromSR(t) {
+    srCancel = false;
+    if (window.ask && t) window.ask(t);
+  }
+
+  function useRecorder() {
     voiceBtn.addEventListener('pointerdown', function (e) {
       e.preventDefault();
       if (recording) { cancelRecording(); return; }
@@ -268,14 +270,32 @@ document.addEventListener('DOMContentLoaded', function () {
       if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
       if (recording) cancelRecording();
     });
-  } else if (voiceBtn) {
-    voiceBtn.addEventListener('click', function () {
-      var statusEl = document.getElementById('voice-status');
-      var sub = document.getElementById('chat-sub');
-      startVoice(function (t) { if (window.ask) window.ask(t); }, voiceBtn, statusEl, sub);
-    });
+    if (vSend) vSend.addEventListener('click', function () { finishRecording(true); });
+    if (vCancel) vCancel.addEventListener('click', function () { cancelRecording(); });
   }
 
-  if (vSend) vSend.addEventListener('click', function () { finishRecording(true); });
-  if (vCancel) vCancel.addEventListener('click', function () { cancelRecording(); });
+  function useSpeech() {
+    voiceBtn.addEventListener('click', function () {
+      if (sr) { stopSR(); return; }
+      srCancel = false;
+      if (startSR(sendFromSR)) {
+        voiceStatus('Listening... speak now');
+      } else {
+        voiceStatus('Voice: could not start speech recognition. Trying the recorder...', true);
+        useRecorder();
+      }
+    });
+    if (vSend) vSend.addEventListener('click', function () { srCancel = false; stopSR(); });
+    if (vCancel) vCancel.addEventListener('click', function () { srCancel = true; stopSR(); });
+  }
+
+  if (SPEECH) {
+    useSpeech();
+  } else if (REC) {
+    useRecorder();
+  } else {
+    voiceBtn.addEventListener('click', function () {
+      voiceStatus('Voice input is not supported in this browser. Please use Chrome, Edge, or the app.', true);
+    });
+  }
 });

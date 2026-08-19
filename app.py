@@ -6,6 +6,7 @@ from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+import requests
 
 import config
 import database as db
@@ -518,6 +519,34 @@ def api_chat():
     db.execute("INSERT INTO ai_chats (user_id, message, reply, created_at) VALUES (?,?,?,?)",
                (uid, msg, reply, db.now()))
     return jsonify({"reply": reply})
+
+
+@app.route("/api/stt", methods=["POST"])
+@login_required
+@onboarding_required
+def api_stt():
+    key = config.groq_key()
+    if not key:
+        return jsonify({"error": "Speech-to-text is not configured"}), 503
+    audio = request.files.get("audio")
+    if not audio:
+        return jsonify({"error": "No audio uploaded"}), 400
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": "Bearer " + key},
+            files={"file": (audio.filename or "voice.webm", audio.stream, audio.mimetype or "audio/webm")},
+            data={"model": "whisper-large-v3-turbo", "response_format": "json"},
+            timeout=60,
+        )
+        if r.status_code != 200:
+            return jsonify({"error": "Transcription failed: " + str(r.status_code)}), 502
+        text = (r.json().get("text") or "").strip()
+        if not text:
+            return jsonify({"text": ""})
+        return jsonify({"text": text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/plan", methods=["GET"])

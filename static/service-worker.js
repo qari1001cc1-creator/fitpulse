@@ -1,8 +1,7 @@
-const CACHE = 'fitpulse-v4';
+const CACHE = 'fitpulse-v5';
 const APP_SHELL = [
   '/',
   '/static/style.css',
-  '/static/fonts/fonts-v2.css',
   '/static/voice.js',
   '/static/manifest.json',
   '/static/icons/icon-192.png',
@@ -53,6 +52,26 @@ self.addEventListener('notificationclick', function (e) {
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
   if (e.request.url.indexOf('/api/') !== -1) return;
+  var accept = e.request.headers.get('accept') || '';
+  var isNavigate = e.request.mode === 'navigate' || accept.indexOf('text/html') !== -1;
+
+  if (isNavigate) {
+    // Network-first for pages so users always get fresh HTML
+    e.respondWith(
+      fetch(e.request).then(function (resp) {
+        if (resp && resp.status === 200) {
+          var clone = resp.clone();
+          caches.open(CACHE).then(function (c) { c.put(e.request, clone); });
+        }
+        return resp;
+      }).catch(function () {
+        return caches.match(e.request).then(function (hit) { return hit || caches.match('/'); });
+      })
+    );
+    return;
+  }
+
+  // Cache-first for static assets
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       var fetchP = fetch(e.request).then(function (resp) {

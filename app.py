@@ -22,6 +22,17 @@ app = Flask(__name__)
 app.secret_key = config.secret_key()
 
 
+@app.after_request
+def _cache_headers(resp):
+    path = request.path
+    if path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+    else:
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 @app.context_processor
 def _inject_notif_count():
     uid = session.get("user_id")

@@ -1,7 +1,8 @@
-const CACHE = 'fitpulse-v2';
+const CACHE = 'fitpulse-v3';
 const APP_SHELL = [
   '/',
   '/static/style.css',
+  '/static/fonts/fonts.css',
   '/static/voice.js',
   '/static/manifest.json',
   '/static/icons/icon-192.png',
